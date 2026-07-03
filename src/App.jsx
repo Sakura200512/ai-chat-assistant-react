@@ -16,14 +16,24 @@ import {
 import { askAI } from './api/aiClient';
 import { useLocalStorage } from './hooks/useLocalStorage';
 
-const starterMessages = [
-  {
-    id: crypto.randomUUID(),
-    role: 'assistant',
-    content: '你好，我是 AI 智能问答助手。你可以问我问题，也可以让我帮你写代码、总结文章或整理思路。',
-    createdAt: new Date().toISOString(),
-  },
-];
+function createId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function createStarterMessages() {
+  return [
+    {
+      id: createId(),
+      role: 'assistant',
+      content: 'Hello, I am your AI chat assistant. Ask me anything, or paste code and Markdown for help.',
+      createdAt: new Date().toISOString(),
+    },
+  ];
+}
 
 function CodeBlock({ inline, className, children, ...props }) {
   const code = String(children).replace(/\n$/, '');
@@ -33,7 +43,11 @@ function CodeBlock({ inline, className, children, ...props }) {
     : hljs.highlightAuto(code).value;
 
   if (inline) {
-    return <code className="inline-code" {...props}>{children}</code>;
+    return (
+      <code className="inline-code" {...props}>
+        {children}
+      </code>
+    );
   }
 
   return (
@@ -44,7 +58,7 @@ function CodeBlock({ inline, className, children, ...props }) {
 }
 
 function App() {
-  const [messages, setMessages] = useLocalStorage('ai-chat.messages', starterMessages);
+  const [messages, setMessages] = useLocalStorage('ai-chat.messages', createStarterMessages());
   const [history, setHistory] = useLocalStorage('ai-chat.history', []);
   const [settings, setSettings] = useLocalStorage('ai-chat.settings', {
     apiKey: '',
@@ -67,7 +81,7 @@ function App() {
     if (!content || isSending) return;
 
     const userMessage = {
-      id: crypto.randomUUID(),
+      id: createId(),
       role: 'user',
       content,
       createdAt: new Date().toISOString(),
@@ -90,14 +104,14 @@ function App() {
       setMessages([
         ...nextMessages,
         {
-          id: crypto.randomUUID(),
+          id: createId(),
           role: 'assistant',
           content: answer,
           createdAt: new Date().toISOString(),
         },
       ]);
     } catch (err) {
-      setError(err.message || '请求失败，请检查 API 配置。');
+      setError(err.message || 'Request failed. Check your API settings.');
       setMessages(nextMessages);
     } finally {
       setIsSending(false);
@@ -109,8 +123,8 @@ function App() {
     if (messages.length > 1) {
       setHistory([
         {
-          id: crypto.randomUUID(),
-          title: messages.find((message) => message.role === 'user')?.content.slice(0, 28) || '未命名对话',
+          id: createId(),
+          title: messages.find((message) => message.role === 'user')?.content.slice(0, 28) || 'Untitled chat',
           messages,
           savedAt: new Date().toISOString(),
         },
@@ -118,12 +132,12 @@ function App() {
       ]);
     }
 
-    setMessages(starterMessages);
+    setMessages(createStarterMessages());
     setError('');
   }
 
   function clearAll() {
-    setMessages(starterMessages);
+    setMessages(createStarterMessages());
     setHistory([]);
     setError('');
   }
@@ -139,20 +153,20 @@ function App() {
         <div className="brand">
           <div className="brand-mark"><Bot size={22} /></div>
           <div>
-            <h1>AI智能问答助手</h1>
-            <span>React版</span>
+            <h1>AI Chat Assistant</h1>
+            <span>React edition</span>
           </div>
         </div>
 
         <button className="primary-action" type="button" onClick={startNewChat}>
           <MessageSquarePlus size={18} />
-          新对话
+          New chat
         </button>
 
         <section className="settings-panel">
           <div className="section-title">
             <Settings2 size={16} />
-            API配置
+            API settings
           </div>
           <label>
             <span>API Key</span>
@@ -167,14 +181,14 @@ function App() {
             </div>
           </label>
           <label>
-            <span>API地址</span>
+            <span>API URL</span>
             <input
               value={settings.apiUrl}
               onChange={(event) => setSettings({ ...settings, apiUrl: event.target.value })}
             />
           </label>
           <label>
-            <span>模型</span>
+            <span>Model</span>
             <input
               value={settings.model}
               onChange={(event) => setSettings({ ...settings, model: event.target.value })}
@@ -185,10 +199,10 @@ function App() {
         <section className="history-panel">
           <div className="section-title">
             <RotateCcw size={16} />
-            历史记录
+            History
           </div>
           <div className="history-list">
-            {history.length === 0 && <p className="empty-text">暂无历史对话</p>}
+            {history.length === 0 && <p className="empty-text">No saved chats yet</p>}
             {history.map((chat) => (
               <button key={chat.id} type="button" onClick={() => restoreChat(chat)}>
                 <span>{chat.title}</span>
@@ -200,17 +214,17 @@ function App() {
 
         <button className="danger-action" type="button" onClick={clearAll}>
           <Trash2 size={17} />
-          清空对话 / 历史
+          Clear chat and history
         </button>
       </aside>
 
       <section className="chat-area">
         <header className="chat-header">
           <div>
-            <h2>当前对话</h2>
-            <p>{usefulMessages.length} 条消息保存在本地浏览器</p>
+            <h2>Current chat</h2>
+            <p>{usefulMessages.length} messages saved in this browser</p>
           </div>
-          <div className="status-pill">{isSending ? 'AI思考中' : '就绪'}</div>
+          <div className="status-pill">{isSending ? 'Thinking' : 'Ready'}</div>
         </header>
 
         <div className="messages">
@@ -234,7 +248,7 @@ function App() {
               <div className="avatar"><Bot size={18} /></div>
               <div className="bubble loading">
                 <Loader2 size={18} />
-                正在生成回答...
+                Generating answer...
               </div>
             </article>
           )}
@@ -246,7 +260,7 @@ function App() {
           <textarea
             ref={inputRef}
             value={input}
-            placeholder="输入你的问题，Shift + Enter 换行"
+            placeholder="Type your question. Shift + Enter for a new line."
             rows={1}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
@@ -256,7 +270,7 @@ function App() {
               }
             }}
           />
-          <button type="submit" disabled={!input.trim() || isSending} title="发送">
+          <button type="submit" disabled={!input.trim() || isSending} title="Send">
             {isSending ? <Loader2 className="spin" size={20} /> : <Send size={20} />}
           </button>
         </form>
